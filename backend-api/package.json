@@ -1,0 +1,31 @@
+{
+  "name": "backend-api",
+  "version": "1.0.0",
+  "description": "Node.js + Express API bridge layer for AI Legal Document Intelligence Platform",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test_api.js"
+  },
+  "dependencies": {
+    "bullmq": "^5.41.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "form-data": "^4.0.2",
+    "ioredis": "^5.5.0",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.3"
+  },
+  "keywords": [
+    "legal-ai",
+    "express",
+    "pgvector",
+    "fastapi-bridge",
+    "multi-hop-retrieval"
+  ],
+  "author": "AI Legal Document Intelligence Platform Team",
+  "license": "MIT"
+}
