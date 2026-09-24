@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Contract, QueryResult } from './types/legal';
-import { INITIAL_MOCK_CONTRACT, MOCK_QUERY_RESPONSES } from './data/mockContract';
+import { INITIAL_MOCK_CONTRACT } from './data/mockContract';
 import { checkBackendHealth, queryContract, type BackendHealthStatus } from './services/api';
 import { Header } from './components/Header';
 import { DocumentViewer } from './components/DocumentViewer';
@@ -12,10 +12,8 @@ export const App: React.FC = () => {
   // Master Contract State (defaults to rich viva presentation contract)
   const [contract, setContract] = useState<Contract>(INITIAL_MOCK_CONTRACT);
 
-  // Active Query & Chain-of-Evidence Result (pre-loaded with verified exclusions for immediate WOW factor)
-  const [queryResult, setQueryResult] = useState<QueryResult | null>(
-    MOCK_QUERY_RESPONSES['exclusions']
-  );
+  // Keep the workspace quiet until the reviewer asks a question.
+  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [isLoadingQuery, setIsLoadingQuery] = useState(false);
 
   // Interactive Highlighting across panels
@@ -36,10 +34,8 @@ export const App: React.FC = () => {
   useEffect(() => {
     checkBackendHealth().then((status) => {
       setHealthStatus(status);
-      // If backend is active and online, allow live mode; otherwise stay on presentation safe mode
-      if (status.isOnline) {
-        setIsOfflineMode(false);
-      }
+      // Stay in the clearly labelled sample-data mode until the presenter
+      // deliberately switches to live services and uploads a real document.
     });
   }, []);
 
@@ -118,7 +114,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#080c14] text-slate-100 overflow-hidden font-sans">
+    <div className="flex flex-col min-h-screen lg:h-screen w-full bg-[#0b0f17] text-slate-100 overflow-y-auto lg:overflow-hidden font-sans">
       {/* Top Application Header */}
       <Header
         healthStatus={healthStatus}
@@ -128,9 +124,9 @@ export const App: React.FC = () => {
       />
 
       {/* Main Split-Screen Workspace Layout */}
-      <main className="flex-1 overflow-hidden p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <main className="w-full max-w-[1600px] mx-auto flex-1 lg:overflow-hidden p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Panel: Interactive Document Viewer (50% / 6 columns) */}
-        <section className="lg:col-span-6 h-full overflow-hidden flex flex-col">
+        <section className="order-2 lg:order-1 lg:col-span-6 h-[560px] lg:h-full overflow-hidden flex flex-col">
           <DocumentViewer
             contract={contract}
             activeClauseId={activeClauseId}
@@ -142,7 +138,7 @@ export const App: React.FC = () => {
         </section>
 
         {/* Right Panel: Interactive Query Box + Forensic Chain-of-Evidence (50% / 6 columns) */}
-        <section className="lg:col-span-6 h-full overflow-hidden flex flex-col">
+        <section className="order-1 lg:order-2 lg:col-span-6 min-h-[520px] lg:h-full overflow-visible lg:overflow-hidden flex flex-col">
           {/* Query Box with presets & missing evidence toggle */}
           <QueryBox onSearch={handleExecuteQuery} isLoading={isLoadingQuery} />
 

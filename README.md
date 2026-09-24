@@ -1,5 +1,5 @@
 # AI Legal Document Intelligence Platform
-### Enterprise-Grade Structural Hierarchy Chunking, Directed Graph Retrieval & Forensic Multi-Hop Legal Analysis
+### Structure-aware contract parsing, dependency retrieval and evidence-grounded answers
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PyMuPDF](https://img.shields.io/badge/PyMuPDF-1.24+-red.svg)](https://pymupdf.readthedocs.io/)
@@ -15,10 +15,10 @@
 
 Most traditional Retrieval-Augmented Generation (RAG) pipelines fail when analyzing legal contracts because they chunk text using naive token lengths (e.g. 512 tokens). This slices clauses in half, strips cross-references, and loses essential contractual hierarchy.
 
-The **AI Legal Document Intelligence Platform** solves this using a 3-tier specialized architecture:
+The **AI Legal Document Intelligence Platform** explores this problem using a three-tier prototype:
 1. **Python Parser Microservice (`backend-parser`)**: Structural layout parsing powered by PyMuPDF (`fitz`), preserving clause boundaries (Articles, Sections, Clauses, Recitals, Schedules) and extracting cross-references (`Section 1.1`, `Schedule A`, `Exhibit B`).
-2. **Node.js API Bridge & Graph Retrieval Engine (`backend-api`)**: Express orchestration bridge backed by PostgreSQL + `pgvector` with a multi-hop dependency traversal engine (`Hop 0 → Hop 1 → Hop 2`) and BullMQ job queue.
-3. **Forensic Analysis Dashboard (`frontend`)**: Executive split-screen legal intelligence interface featuring interactive clause navigation, glowing cross-reference jumping, 4-step forensic chain-of-evidence visualization, and an **`ABSTAIN: Missing Evidence`** hallucination safeguard.
+2. **Node.js API Bridge & Graph Retrieval Engine (`backend-api`)**: Express orchestration, PostgreSQL or development in-memory storage, lexical seed retrieval, dependency traversal (`Hop 0 → Hop 1 → Hop 2`), missing-reference verification and optional Gemini generation.
+3. **Contract Review Workspace (`frontend`)**: A focused React interface for PDF upload, clause navigation, questions, evidence review and safe refusal when a required schedule or exhibit is absent.
 
 ---
 
@@ -27,9 +27,9 @@ The **AI Legal Document Intelligence Platform** solves this using a 3-tier speci
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          Frontend (React + Vite)                            │
-│  - Split-screen legal document viewer & cross-reference highlight jump       │
-│  - 4-step forensic chain-of-evidence (Retrieved -> Graph -> Verify -> Verdict)│
-│  - ABSTAIN: Missing Evidence badge for unattached schedules & hallucination │
+│  - Contract viewer, cross-reference navigation and evidence list             │
+│  - Explicit sample-data and live-backend modes                               │
+│  - Missing-evidence warning for unattached schedules or exhibits             │
 └───────────────────────┬─────────────────────────────────────────────────────┘
                         │
                         │ HTTP REST (JSON / Multipart)
@@ -37,9 +37,9 @@ The **AI Legal Document Intelligence Platform** solves this using a 3-tier speci
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       Backend API Bridge (Node.js)                          │
 │  - Express REST Gateway (POST /api/contracts/upload, POST /api/query)       │
-│  - PostgreSQL + pgvector schema & mock fallback                             │
+│  - PostgreSQL schema with development in-memory fallback                    │
 │  - Directed Dependency Graph Traversal (multiHopQuery)                      │
-│  - Redis + BullMQ asynchronous job queue                                    │
+│  - Evidence verification, Gemini integration and safe fallback              │
 └───────────────────────┬─────────────────────────────────────────────────────┘
                         │
                         │ Multipart PDF Stream
@@ -72,12 +72,13 @@ legal-document-ai/
 │   ├── services/
 │   │   ├── parserService.js      # Streaming proxy to Python microservice
 │   │   ├── graphService.js       # Multi-hop graph resolution & traversal
+│   │   ├── geminiService.js      # Evidence-only generation and citation checks
 │   │   └── queueService.js       # BullMQ Redis task queue
 │   ├── test_api.js               # API unit & integration test suite
 │   ├── test_e2e_integration.js   # Cross-service end-to-end integration test
 │   └── package.json              # Node.js dependencies
 │
-└── frontend/                     # React + Vite + Tailwind CSS Dashboard
+├── frontend/                     # React + Vite + Tailwind CSS workspace
     ├── src/
     │   ├── components/           # Split-screen viewer, chain-of-evidence, metrics
     │   ├── data/                 # Sample verified contract data & offline mocks
@@ -85,7 +86,11 @@ legal-document-ai/
     │   ├── App.tsx               # Main presentation dashboard
     │   └── main.tsx              # Application mount point
     ├── vite.config.ts            # Vite configuration
-    └── package.json              # Frontend dependencies
+│   └── package.json              # Frontend dependencies
+│
+├── report-latex/                 # Mid-term report and viva study source
+├── RUN_DEMO.md                   # Local demonstration instructions
+└── VIVA_GUIDE.md                 # Concise project viva reference
 ```
 
 ---
@@ -125,7 +130,7 @@ npm start
 
 ---
 
-### Step 3: Launch the Frontend Presentation Dashboard
+### Step 3: Launch the Frontend
 
 ```bash
 cd frontend
@@ -141,7 +146,7 @@ npm run dev
 ### 1. Test Python Parser Microservice
 ```bash
 cd backend-parser
-python test_service.py
+.venv/bin/python test_service.py
 ```
 
 ### 2. Test Node.js API Bridge & Graph Traversal
@@ -153,19 +158,19 @@ npm test
 ### 3. Run End-to-End Cross-Service Test
 ```bash
 cd backend-api
-npm run test:e2e
+PYTHON_BIN=../backend-parser/.venv/bin/python npm run test:e2e
 ```
 
 ---
 
 ## 🛡️ Key Forensic Features
 
-- **Non-Hallucinatory Abstention**: When queried about unattached exhibits (e.g. *Schedule B*), the system recognizes the reference without guessing its contents, displaying a verified `ABSTAIN: Missing Evidence` notice.
+- **Missing-evidence abstention**: When queried about an unattached exhibit (for example, *Schedule B*), the system recognizes the unresolved reference and refuses to invent its contents.
 - **Bi-Directional Cross-Reference Jumping**: Instantly navigate from modifying clauses to base definitions with a single click.
 - **Full Traceability**: Every answer cites exact clause IDs, page numbers, and multi-hop graph paths (`Hop 0 → Hop 1`).
 
 ---
 
-## 📄 License
+## Project status
 
-MIT License. Designed and developed for the AI Legal Document Intelligence Platform.
+This is a mid-term academic prototype. OCR, large-dataset evaluation, dense or hybrid retrieval, authentication and multi-document amendment reasoning remain future work.

@@ -141,7 +141,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
                 <GitFork className="w-4 h-4 text-indigo-400 mx-auto mb-1" />
                 <div className="text-base font-bold font-mono text-slate-100">
-                  {successResult.dependencies_linked || 6}
+                  {successResult.dependencies_linked ?? 0}
                 </div>
                 <div className="text-[11px] text-slate-400">Graph Links</div>
               </div>
@@ -149,7 +149,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center">
                 <Clock className="w-4 h-4 text-amber-400 mx-auto mb-1" />
                 <div className="text-base font-bold font-mono text-slate-100">
-                  {successResult.parser_time_ms || 18}ms
+                  {successResult.parser_time_ms ?? 0}ms
                 </div>
                 <div className="text-[11px] text-slate-400">Parser Latency</div>
               </div>

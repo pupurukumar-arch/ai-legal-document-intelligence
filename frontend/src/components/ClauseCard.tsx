@@ -17,74 +17,55 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
   isDependencyHop = false,
   onSelectReference
 }) => {
-  // Determine canonical badge style with rich background & borders
-  const getBadgeStyle = (cid: string) => {
-    if (cid.startsWith('SEC-')) {
-      return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10';
-    }
-    if (cid.startsWith('CLAUSE-')) {
-      return 'bg-purple-500/15 text-purple-300 border-purple-500/40 shadow-sm shadow-purple-500/10';
-    }
-    if (cid.startsWith('SCHED-') || cid.startsWith('EXHIBIT-')) {
-      return 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10';
-    }
-    if (cid.startsWith('ART-')) {
-      return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 shadow-sm shadow-indigo-500/10';
-    }
-    return 'bg-slate-500/15 text-slate-200 border-slate-500/40';
-  };
-
   return (
     <div
       id={`clause-${clause.clause_id}`}
-      className={`relative p-5 sm:p-6 rounded-2xl transition-all duration-300 glass-card ${
+      className={`relative p-4 rounded-lg border bg-[#0e1420] transition-colors ${
         isHighlighted
           ? 'highlight-target'
           : isActive
-          ? 'border-cyan-500/90 bg-slate-900/95 shadow-xl shadow-cyan-500/15 ring-1 ring-cyan-500/30'
+          ? 'border-sky-700 bg-slate-900'
           : isDependencyHop
-          ? 'border-indigo-500/50 bg-indigo-950/25 ring-1 ring-indigo-500/20'
-          : 'hover:border-slate-600/90'
+          ? 'border-indigo-800 bg-slate-900'
+          : 'border-slate-800 hover:border-slate-700'
       }`}
     >
       {/* Top Header: Canonical Badge + Section Title + Page Number */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 flex-wrap sm:flex-nowrap">
+      <div className="flex items-center justify-between gap-3 mb-2.5 flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2.5 min-w-0">
           <span
-            className={`font-mono text-sm sm:text-base font-bold px-3 py-1 rounded-lg border tracking-wide uppercase shrink-0 ${getBadgeStyle(
-              clause.clause_id
-            )}`}
+            className="font-mono text-[11px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-900 text-slate-300 tracking-wide uppercase shrink-0"
           >
             {clause.clause_id}
           </span>
-          <span className="text-base sm:text-lg text-slate-100 font-semibold truncate tracking-tight">
+          <span className="text-sm text-slate-100 font-medium truncate tracking-tight">
             {clause.section_title}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 font-mono shrink-0 ml-auto">
-          <Bookmark className="w-4 h-4 text-cyan-400/80" />
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0 ml-auto">
+          <Bookmark className="w-3.5 h-3.5" />
           <span>Page {clause.page_number}</span>
         </div>
       </div>
 
       {/* Main Clause Body Text - Increased size & readability for presentation */}
-      <div className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans whitespace-pre-line mb-4 select-text">
+      <div className={`text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-line mb-3 select-text ${!isActive && !isDependencyHop && !isHighlighted ? 'line-clamp-2' : ''}`}>
         {clause.content}
       </div>
 
       {/* Clickable Cross-References Section */}
       {clause.cross_references && clause.cross_references.length > 0 && (
         <div className="pt-3.5 border-t border-slate-800/90 flex items-center flex-wrap gap-2">
-          <span className="text-xs sm:text-sm uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5 mr-1">
-            <Hash className="w-3.5 h-3.5 text-cyan-400" />
-            Cross-References:
+          <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mr-1">
+            <Hash className="w-3.5 h-3.5" />
+            Refers to:
           </span>
           {clause.cross_references.map((ref, idx) => (
             <button
               key={idx}
               onClick={() => onSelectReference && onSelectReference(ref)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-mono font-semibold bg-slate-800/90 hover:bg-cyan-950/70 text-cyan-300 hover:text-cyan-100 border border-slate-700 hover:border-cyan-400/60 shadow-sm transition-all duration-200 group cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors group cursor-pointer"
               title={`Jump to referenced clause: ${ref}`}
             >
               <span>{ref}</span>

@@ -51,7 +51,7 @@ The confidentiality obligations under Section 1.1 shall not apply to public info
     page2 = doc.new_page()
     p2_text = """ARTICLE 2 - OBLIGATIONS AND COVENANTS
 Section 2.1 Non-Disclosure Duty.
-The Recipient agrees to hold all Confidential Information in strict confidence and shall not disclose it to third parties without prior written consent, subject to Exhibit B and Section 1.1.
+The Recipient agrees to hold all Confidential Information in strict confidence and shall not disclose it to third parties without prior written consent, subject to Schedule B and Section 1.1.
 
 Section 2.2 Standard of Care.
 Recipient shall use the same degree of care it employs to protect its own sensitive data, as further outlined in Clause 3.1.
@@ -111,7 +111,7 @@ def test_parser_structural_chunking():
     assert any("Section 1.1" in r for r in sec_1_2.cross_references)
 
     sec_2_1 = next(c for c in clauses if "SEC-2.1" in c.clause_id)
-    assert any("Exhibit B" in r for r in sec_2_1.cross_references)
+    assert any("Schedule B" in r for r in sec_2_1.cross_references)
     assert any("Section 1.1" in r for r in sec_2_1.cross_references)
 
     clause_3_1 = next(c for c in clauses if "CLAUSE-3.1" in c.clause_id)

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sparkles, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Search, AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface QueryBoxProps {
   onSearch: (query: string, isMissingEvidenceDemo: boolean) => void;
@@ -10,32 +10,32 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
   const [query, setQuery] = useState(
     'What are the exclusions to confidential information?'
   );
-  const [isMissingEvidenceToggle, setIsMissingEvidenceToggle] = useState(false);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || isLoading) return;
-    onSearch(query.trim(), isMissingEvidenceToggle);
+    onSearch(query.trim(), false);
   };
 
   const handleSelectPreset = (presetText: string, isMissingDemo: boolean) => {
     setQuery(presetText);
-    setIsMissingEvidenceToggle(isMissingDemo);
     onSearch(presetText, isMissingDemo);
   };
 
   return (
-    <div className="glass-panel p-5 rounded-2xl border border-slate-800/80 shadow-xl mb-4">
-      {/* Search Input Bar - Enlarged for presentation view */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-3 mb-3.5">
+    <div className="bg-[#111722] p-5 rounded-xl border border-slate-800 mb-6">
+      <div className="mb-4">
+        <h2 className="text-base font-semibold text-white">Ask about the contract</h2>
+        <p className="text-xs text-slate-500 mt-1">Answers remain linked to the clauses used.</p>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-3">
         <div className="relative flex-1">
-          <Search className="w-5 h-5 text-cyan-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-4.5 h-4.5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask a question across the contract hierarchy (e.g., 'What are the exclusions to confidentiality?')..."
-            className="w-full pl-12 pr-4 py-3 bg-slate-950/90 border border-slate-800 rounded-xl text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/25 font-sans transition-all"
+            placeholder="Example: What information is excluded?"
+            className="w-full pl-11 pr-4 py-3 bg-[#0b0f17] border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-500 transition-colors"
             disabled={isLoading}
           />
         </div>
@@ -43,7 +43,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
         <button
           type="submit"
           disabled={isLoading || !query.trim()}
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-semibold text-sm sm:text-base flex items-center gap-2.5 shadow-lg shadow-cyan-600/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
+          className="px-5 py-3 rounded-lg bg-slate-100 hover:bg-white text-slate-950 font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
         >
           {isLoading ? (
             <>
@@ -52,20 +52,15 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
             </>
           ) : (
             <>
-              <span>Execute Retrieval</span>
+              <span>Check contract</span>
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </>
           )}
         </button>
       </form>
 
-      {/* Preset Prompts & Forensic Toggle Bar - Increased button padding & text */}
-      <div className="flex items-center justify-between flex-wrap gap-2.5 pt-3 border-t border-slate-800/70 text-xs sm:text-sm">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-slate-300 font-mono font-semibold flex items-center gap-1.5 mr-1">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            Presets:
-          </span>
+      <div className="flex items-center gap-x-4 gap-y-2 flex-wrap pt-1 text-xs">
+          <span className="text-slate-500">Examples</span>
 
           <button
             type="button"
@@ -75,9 +70,9 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 false
               )
             }
-            className="px-3.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 border border-slate-700/80 transition-colors font-medium text-xs sm:text-sm cursor-pointer shadow-sm"
+            className="text-slate-300 hover:text-white underline underline-offset-4 decoration-slate-700 cursor-pointer"
           >
-            Exclusions (Multi-Hop)
+            What is excluded?
           </button>
 
           <button
@@ -88,9 +83,9 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 false
               )
             }
-            className="px-3.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 border border-slate-700/80 transition-colors font-medium text-xs sm:text-sm cursor-pointer shadow-sm"
+            className="text-slate-300 hover:text-white underline underline-offset-4 decoration-slate-700 cursor-pointer"
           >
-            Standard of Care & Duration
+            Care and duration
           </button>
 
           <button
@@ -101,26 +96,12 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 true
               )
             }
-            className="px-3.5 py-1.5 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 text-rose-200 hover:text-white border border-rose-600/50 transition-colors font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-950/40"
-            title="Demonstrates ABSTAIN: Missing Evidence when unattached schedule is queried"
+            className="text-rose-300 hover:text-rose-200 font-medium flex items-center gap-1.5 cursor-pointer"
+            title="Queries the dependency graph for an unattached schedule"
           >
             <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-            Is Schedule B Attached? (ABSTAIN Demo)
+            Check missing Schedule B
           </button>
-        </div>
-
-        {/* Missing Evidence Toggle */}
-        <label className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white bg-slate-900/70 px-3 py-1.5 rounded-lg border border-slate-800">
-          <input
-            type="checkbox"
-            checked={isMissingEvidenceToggle}
-            onChange={(e) => setIsMissingEvidenceToggle(e.target.checked)}
-            className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-rose-500 focus:ring-rose-500/30 accent-rose-500 cursor-pointer"
-          />
-          <span className="text-xs sm:text-sm font-mono text-rose-300 font-semibold">
-            Simulate Missing Evidence
-          </span>
-        </label>
       </div>
     </div>
   );

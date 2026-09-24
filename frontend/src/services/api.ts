@@ -86,22 +86,14 @@ export async function uploadContractPdf(
         filename: data.filename || file.name,
         total_pages: data.total_pages || 1,
         total_clauses: data.total_clauses || (data.clauses ? data.clauses.length : 0),
-        dependencies_linked: data.dependencies_linked || 0,
-        parser_time_ms: data.parser_time_ms || 20,
+        dependencies_linked: data.dependencies_linked ?? 0,
+        parser_time_ms: data.parser_time_ms ?? 0,
         clauses: data.clauses || []
       },
       isMockFallback: false
     };
   } catch (err: any) {
-    console.warn('[API Upload Error] Falling back to verified presentation mock:', err.message);
-    return {
-      contract: {
-        ...INITIAL_MOCK_CONTRACT,
-        id: `mock-${Date.now()}`,
-        filename: file.name,
-      },
-      isMockFallback: true
-    };
+    throw new Error(`Live upload failed: ${err.message}`);
   }
 }
 
@@ -116,27 +108,17 @@ export async function queryContract(
   forceMissingEvidence: boolean = false,
   forceOffline: boolean = false
 ): Promise<QueryResult> {
-  const isScheduleBQuery = forceMissingEvidence || /schedule\s*b/i.test(query) || /missing/i.test(query);
-
-  // 1. Missing Evidence Forensic Demonstration (Always triggers prominent red ABSTAIN badge)
-  if (isScheduleBQuery) {
-    return {
-      ...MOCK_QUERY_RESPONSES["missing_evidence"],
-      query,
-      contract_id: contractId || MOCK_QUERY_RESPONSES["missing_evidence"].contract_id
-    };
-  }
-
-  // 2. Offline Presentation Mode
+  // Offline mode is explicitly labelled and is the only path that uses demo data.
   if (forceOffline) {
+    const demoKey = forceMissingEvidence ? "missing_evidence" : "exclusions";
     return {
-      ...MOCK_QUERY_RESPONSES["exclusions"],
+      ...MOCK_QUERY_RESPONSES[demoKey],
       query,
-      contract_id: contractId || MOCK_QUERY_RESPONSES["exclusions"].contract_id
+      contract_id: contractId || MOCK_QUERY_RESPONSES[demoKey].contract_id
     };
   }
 
-  // 3. Live API Call to http://localhost:3050/api/query
+  // Live API failures are surfaced instead of silently returning mock evidence.
   try {
     const res = await fetch(`${API_BASE_URL}/api/query`, {
       method: 'POST',
@@ -156,6 +138,11 @@ export async function queryContract(
       // Synthesize 4-step Chain-of-Evidence from live multi-hop backend response
       const seed = data.direct_matches && data.direct_matches.length > 0 ? data.direct_matches[0] : null;
       const hops = data.multi_hop_references || [];
+      const missing = data.missing_references || [];
+      const generated = data.generated_answer;
+      const isAbstain = Boolean(
+        data.is_abstain || generated?.status === 'INSUFFICIENT_EVIDENCE'
+      );
 
       return {
         query: data.query || query,
@@ -164,22 +151,28 @@ export async function queryContract(
         multi_hop_references: hops,
         total_context_clauses: data.total_context_clauses || (data.direct_matches?.length || 0) + hops.length,
         full_context: data.full_context || '',
-        is_abstain: false,
-        verdict_summary: seed 
-          ? `Verified contractual scope anchored by ${seed.clause_id} (${seed.section_title}) and resolved across ${hops.length} cross-referenced dependency nodes.`
-          : "Contractual context synthesized via graph traversal.",
+        is_abstain: isAbstain,
+        abstain_reason: data.abstain_reason || (isAbstain ? generated?.answer : undefined),
+        missing_references: missing,
+        answer_provider: generated?.answer_provider,
+        answer_model: generated?.answer_model,
+        answer_citations: generated?.citations || [],
+        verdict_summary: isAbstain
+          ? undefined
+          : generated?.answer || (seed
+            ? `Evidence retrieved from ${seed.clause_id} (${seed.section_title}) with ${hops.length} resolved cross-reference${hops.length === 1 ? '' : 's'}.`
+            : "No relevant contractual evidence was retrieved."),
         evidence_steps: [
           {
             step_number: 1,
             title: "Seed Clause Retrieval",
-            badge: "Hop 0: Semantic Match",
+            badge: "Hop 0: Lexical Match",
             type: "retrieval",
             status: "verified",
             details: seed 
-              ? `Direct vector similarity and lexical match selected ${seed.clause_id} ('${seed.section_title}') on Page ${seed.page_number}.`
+              ? `Lexical retrieval selected ${seed.clause_id} ('${seed.section_title}') on Page ${seed.page_number}.`
               : "Direct keyword search identified initial candidate section.",
-            source_citation: seed ? `${seed.clause_id} (Page ${seed.page_number})` : undefined,
-            confidence_score: 0.95
+            source_citation: seed ? `${seed.clause_id} (Page ${seed.page_number})` : undefined
           },
           {
             step_number: 2,
@@ -190,42 +183,40 @@ export async function queryContract(
             details: hops.length > 0
               ? `Traversed directed relations in clause_dependencies table: ${hops.map((h: any) => `${h.clause_id} [${h.relation_type}]`).join(', ')}.`
               : "No secondary cross-references registered for this clause.",
-            source_citation: hops.map((h: any) => h.clause_id).join(' + '),
-            confidence_score: 0.98
+            source_citation: hops.map((h: any) => h.clause_id).join(' + ')
           },
           {
             step_number: 3,
-            title: "Forensic Integrity Verification",
-            badge: "Verification: All Nodes Validated",
+            title: "Reference Integrity Verification",
+            badge: isAbstain ? `${missing.length} Missing Reference${missing.length === 1 ? '' : 's'}` : "All Queried References Resolved",
             type: "verification",
-            status: "verified",
-            details: "All target clauses and referenced schedules physically resolved against the document structural layout.",
-            source_citation: "Document Structural Layout Validated",
-            confidence_score: 1.00
+            status: isAbstain ? "abstain" : "verified",
+            details: isAbstain
+              ? data.abstain_reason
+              : "No unresolved attachment or clause reference relevant to this query was found.",
+            source_citation: isAbstain
+              ? missing.map((ref: any) => `${ref.reference} via ${ref.referenced_by}`).join(', ')
+              : "Parsed dependency graph"
           },
           {
             step_number: 4,
-            title: "Synthesized Legal Verdict",
-            badge: "Verdict: Verified Provenance",
+            title: isAbstain ? "Safe Refusal" : "Retrieved Evidence",
+            badge: isAbstain ? "ABSTAIN" : "Evidence Ready",
             type: "verdict",
-            status: "verified",
-            details: data.full_context
-              ? data.full_context.split('\n\n')[0].replace(/===.*?===/g, '').trim()
-              : "Target query successfully answered with multi-hop citations.",
-            source_citation: "Complete Chain of Evidence",
-            confidence_score: 0.96
+            status: isAbstain ? "abstain" : "verified",
+            details: isAbstain
+              ? "Answer generation was stopped because the required evidence is absent."
+              : data.full_context
+                ? data.full_context.split('\n\n')[0].replace(/===.*?===/g, '').trim()
+                : "Relevant clauses were retrieved for review.",
+            source_citation: isAbstain ? undefined : "Retrieved clause set"
           }
         ]
       };
     }
+    const errorText = await res.text();
+    throw new Error(`Query failed HTTP ${res.status}: ${errorText}`);
   } catch (err: any) {
-    console.warn('[API Query Error] Falling back to verified mock response:', err.message);
+    throw new Error(`Live query failed: ${err.message}`);
   }
-
-  // Graceful fallback for viva presentation safety
-  return {
-    ...MOCK_QUERY_RESPONSES["exclusions"],
-    query,
-    contract_id: contractId || MOCK_QUERY_RESPONSES["exclusions"].contract_id
-  };
 }

@@ -13,6 +13,7 @@ const db = require('./db');
 const { parsePdfContract, PARSER_SERVICE_URL } = require('./services/parserService');
 const { saveContractWithClauses, multiHopQuery } = require('./services/graphService');
 const { addContractJob, isRedisConnected } = require('./services/queueService');
+const { generateGroundedAnswer } = require('./services/geminiService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -56,7 +57,8 @@ app.get('/health', async (req, res) => {
         database: isDbConnected ? 'connected' : (db.isMock() ? 'in-memory-fallback' : 'disconnected'),
         python_parser: isParserReachable ? 'reachable' : 'unavailable',
         parser_url: PARSER_SERVICE_URL,
-        redis_queue: isRedisConnected() ? 'connected' : 'disabled'
+        redis_queue: isRedisConnected() ? 'connected' : 'disabled',
+        answer_generation: process.env.GEMINI_API_KEY ? 'gemini-configured' : 'evidence-only-fallback'
     });
 });
 
@@ -132,7 +134,7 @@ app.post('/api/contracts/upload', upload.single('file'), async (req, res) => {
 /**
  * POST /api/query
  * Accepts legal search query and returns multi-hop retrieval results.
- * Hop 0: Direct keyword/vector match
+ * Hop 0: Direct lexical match
  * Hop 1 & 2: Traverses clause_dependencies for referenced sections, schedules, exhibits.
  */
 app.post('/api/query', async (req, res) => {
@@ -152,9 +154,40 @@ app.post('/api/query', async (req, res) => {
             maxHops: parseInt(hops, 10) || 2
         });
 
+        let generatedAnswer;
+        if (retrievalResult.is_abstain) {
+            generatedAnswer = {
+                status: 'INSUFFICIENT_EVIDENCE',
+                answer: retrievalResult.abstain_reason,
+                citations: retrievalResult.missing_references
+                    .map(ref => ref.referenced_by)
+                    .filter(Boolean),
+                answer_provider: 'deterministic-verifier',
+                answer_model: null
+            };
+        } else {
+            const evidence = [
+                ...retrievalResult.direct_matches,
+                ...retrievalResult.multi_hop_references
+            ];
+            try {
+                generatedAnswer = await generateGroundedAnswer({ question: query, evidence });
+            } catch (generationError) {
+                console.warn('[Gemini]', generationError.message);
+                generatedAnswer = {
+                    status: 'GENERATION_FAILED',
+                    answer: 'Relevant clauses were retrieved, but answer generation was unavailable. Review the cited evidence below.',
+                    citations: retrievalResult.direct_matches.slice(0, 1).map(item => item.clause_id),
+                    answer_provider: 'safe-fallback',
+                    answer_model: null
+                };
+            }
+        }
+
         res.json({
             success: true,
-            ...retrievalResult
+            ...retrievalResult,
+            generated_answer: generatedAnswer
         });
 
     } catch (err) {

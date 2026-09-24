@@ -177,11 +177,22 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
 
     // Step 3: Direct Match Scoring (Hop 0)
     // Hybrid scoring: checks terms in title, clause_id, and content
-    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const queryTerms = query.toLowerCase().match(/[a-z0-9]+(?:\.[a-z0-9]+)*/g) || [];
     
     const scoredClauses = allClauses.map(clause => {
         let score = 0;
         const textToSearch = `${clause.clause_id} ${clause.section_title} ${clause.content}`.toLowerCase();
+
+        // An explicit reference named in the question is strong evidence that
+        // its source clause should be inspected, even when common words in
+        // other clauses would otherwise dominate lexical scoring.
+        for (const reference of clause.cross_references || []) {
+            const normalizedReference = reference.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+            const normalizedQuestion = query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+            if (normalizedReference && normalizedQuestion.includes(normalizedReference)) {
+                score += 20;
+            }
+        }
 
         for (const term of queryTerms) {
             // High weight if matched in section title or clause_id
@@ -260,6 +271,44 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
         if (currentHopClauses.length === 0) break;
     }
 
+    // Verify that references relevant to this query resolve to real clauses.
+    // This is deterministic: the UI or an LLM cannot claim that an attachment
+    // exists when the parser and dependency graph did not find it.
+    const inspectedClauseIds = new Set([
+        ...seeds.map(s => s.id),
+        ...multiHopResults.map(m => m.id)
+    ]);
+    const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const unresolvedReferences = allDependencies
+        .filter(dep => inspectedClauseIds.has(dep.source_clause_id) && !dep.target_clause_id)
+        .filter(dep => {
+            const raw = (dep.target_clause_code || '').toLowerCase();
+            const normalized = (normalizeRefToClauseId(dep.target_clause_code) || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ');
+            const queryTokens = normalizedQuery.split(/\s+/);
+            return raw && (
+                normalizedQuery.includes(raw) ||
+                normalizedQuery.includes(normalized) ||
+                raw.split(/\s+/).every(token => queryTokens.includes(token))
+            );
+        })
+        .map(dep => {
+            const source = clauseMap.get(dep.source_clause_id);
+            return {
+                reference: dep.target_clause_code,
+                normalized_reference: normalizeRefToClauseId(dep.target_clause_code),
+                relation_type: dep.relation_type,
+                referenced_by: source ? source.clause_id : null,
+                source_page: source ? source.page_number : null
+            };
+        });
+
+    const uniqueMissingReferences = Array.from(
+        new Map(unresolvedReferences.map(ref => [ref.normalized_reference, ref])).values()
+    );
+    const isAbstain = uniqueMissingReferences.length > 0;
+
     // Step 5: Synthesize Full Legal Context
     const contextSections = [];
     contextSections.push(`=== DIRECT RETRIEVAL MATCHES (HOP 0) ===`);
@@ -278,13 +327,27 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
         }
     }
 
+    if (isAbstain) {
+        contextSections.push(`\n=== UNRESOLVED REFERENCES ===`);
+        for (const missing of uniqueMissingReferences) {
+            contextSections.push(
+                `${missing.reference} is referenced by ${missing.referenced_by || 'an extracted clause'} but was not found in the uploaded contract.`
+            );
+        }
+    }
+
     return {
         query,
         contract_id: contractId,
         direct_matches: seeds,
         multi_hop_references: multiHopResults,
         total_context_clauses: seeds.length + multiHopResults.length,
-        full_context: contextSections.join('\n')
+        full_context: contextSections.join('\n'),
+        is_abstain: isAbstain,
+        missing_references: uniqueMissingReferences,
+        abstain_reason: isAbstain
+            ? `${uniqueMissingReferences.map(ref => ref.reference).join(', ')} ${uniqueMissingReferences.length === 1 ? 'is' : 'are'} referenced by the contract but missing from the uploaded document. The system will not infer the missing content.`
+            : null
     };
 }
 

@@ -77,3 +77,13 @@ temp/
 *.tmp
 *.pdf
 test_output/
+
+# Generated reports and LaTeX build artifacts
+output/
+report-latex/*.zip
+*.aux
+*.lof
+*.lot
+*.out
+*.toc
+*.xdv

@@ -17,6 +17,7 @@ const BASE_URL = `http://localhost:${PORT}`;
 const PARSER_DIR = path.resolve(__dirname, '../backend-parser');
 const SAMPLE_PDF_PATH = path.resolve(__dirname, 'sample_contract.pdf');
 const NORMALIZED_PDF_PATH = SAMPLE_PDF_PATH.replace(/\\/g, '/');
+const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 
 let server = null;
 let pythonProcess = null;
@@ -41,7 +42,7 @@ async function runE2ETest() {
     // 1. Generate test PDF using Python script executed directly in backend-parser directory
     console.log('[E2E 1] Generating synthetic legal contract PDF from backend-parser directory...');
     const pythonCmd = `from test_service import generate_synthetic_legal_pdf; open('${NORMALIZED_PDF_PATH}', 'wb').write(generate_synthetic_legal_pdf())`;
-    await runCommandSync('python', ['-c', pythonCmd], { cwd: PARSER_DIR });
+    await runCommandSync(PYTHON_BIN, ['-c', pythonCmd], { cwd: PARSER_DIR });
     console.log(`✓ Created ${SAMPLE_PDF_PATH}`);
 
     // 2. Start Python FastAPI parser microservice if not already running
@@ -54,7 +55,7 @@ async function runE2ETest() {
 
     if (!parserRunning) {
         console.log(`Starting Python parser in ${PARSER_DIR} (uvicorn main:app --port 8000)...`);
-        pythonProcess = spawn('python', ['-m', 'uvicorn', 'main:app', '--port', '8000'], {
+        pythonProcess = spawn(PYTHON_BIN, ['-m', 'uvicorn', 'main:app', '--port', '8000'], {
             cwd: PARSER_DIR,
             detached: false,
             stdio: 'ignore'
@@ -126,6 +127,7 @@ async function runE2ETest() {
     const queryData = await queryRes.json();
     assert.strictEqual(queryData.success, true);
     assert(queryData.direct_matches.length > 0, 'Direct match required');
+    assert(queryData.generated_answer, 'Grounded answer envelope required');
 
     console.log(`✓ Multi-Hop Query Successful:`);
     console.log(`  - Seed Clause: [${queryData.direct_matches[0].clause_id}] "${queryData.direct_matches[0].section_title}"`);
@@ -133,6 +135,25 @@ async function runE2ETest() {
     for (const ref of queryData.multi_hop_references) {
         console.log(`    -> [Hop ${ref.hop_level}] ${ref.clause_id} (${ref.section_title}) [${ref.relation_type}]`);
     }
+
+    // 7. Verify that an absent attachment causes a genuine backend abstention.
+    console.log('\n[E2E 5] Verifying Missing-Evidence Abstention...');
+    const missingRes = await fetch(`${BASE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            query: 'Is Schedule B attached and what does it require?',
+            contract_id: uploadData.contract_id,
+            top_k: 2,
+            hops: 2
+        })
+    });
+    assert.strictEqual(missingRes.status, 200);
+    const missingData = await missingRes.json();
+    assert.strictEqual(missingData.is_abstain, true);
+    assert.strictEqual(missingData.generated_answer.answer_provider, 'deterministic-verifier');
+    assert(missingData.missing_references.some(ref => ref.normalized_reference === 'SCHED-B'));
+    console.log(`✓ Backend abstained from unsupported answer: ${missingData.abstain_reason}`);
 
     console.log('\n======================================================');
     console.log('  FULL CROSS-SERVICE END-TO-END PIPELINE VALIDATED!   ');

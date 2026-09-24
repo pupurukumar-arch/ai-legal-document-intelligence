@@ -54,6 +54,16 @@ export interface QueryResult {
   full_context: string;
   is_abstain?: boolean;
   abstain_reason?: string;
+  missing_references?: Array<{
+    reference: string;
+    normalized_reference: string;
+    relation_type: string;
+    referenced_by?: string;
+    source_page?: number;
+  }>;
+  answer_provider?: 'gemini' | 'extractive-fallback' | 'deterministic-verifier' | 'safe-fallback';
+  answer_model?: string | null;
+  answer_citations?: string[];
   verdict_summary?: string;
   evidence_steps: EvidenceStep[];
 }
