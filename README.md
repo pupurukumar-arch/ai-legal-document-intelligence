@@ -1,4 +1,38 @@
 # AI Legal Document Intelligence Platform
+
+## Current demonstration scope
+
+This prototype answers questions only from retrieved contract evidence, follows clause-to-clause and schedule references, and abstains when a required attachment is missing. It also includes a small, versioned Legal Policy Graph for four fictional demo document types: NDA, residential rent, employment and software service agreements. The policy graph powers review prompts and controlled redline templates; it does **not** determine whether a contract is legally valid or enforceable.
+
+### Active prototype storage
+
+ChromaDB is the persistent local document store for this prototype. Each indexed clause stores the original clause text, document ID, filename, document type, page number, section heading and cross-references alongside its semantic embedding. On a query, the Node API reads the clauses from ChromaDB and rebuilds the Contract Graph from stored cross-reference metadata. This keeps the demo self-contained without requiring PostgreSQL.
+
+Generate the four upload-ready fictional PDFs with:
+
+```bash
+cd backend-parser
+python generate_demo_documents.py
+```
+
+For optional Groq or OpenRouter answer generation, copy `backend-api/.env.example` to `.env` and set one provider key. Without a key, the backend uses an evidence-only fallback.
+
+## Optional production database
+
+The active demo persists documents in ChromaDB. PostgreSQL + pgvector remains an optional production architecture for relational data, multi-user ownership, transactions and audit history:
+
+```bash
+docker compose up -d postgres
+cp backend-api/.env.postgres.example backend-api/.env
+```
+
+If your Docker installation does not include the Compose plugin, start the same service with:
+
+```bash
+bash scripts/start_postgres.sh
+```
+
+Add your existing Groq key to `backend-api/.env`, then restart the Node API. The mounted schema creates `contracts`, `clauses`, dependency edges and pgvector support.
 ### Structure-aware contract parsing, dependency retrieval and evidence-grounded answers
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)

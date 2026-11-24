@@ -15,10 +15,13 @@ CREATE TABLE IF NOT EXISTS contracts (
     file_size_bytes BIGINT,
     total_pages INT DEFAULT 0,
     total_clauses INT DEFAULT 0,
+    document_type VARCHAR(80) DEFAULT 'unknown',
     status VARCHAR(50) DEFAULT 'processed',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS document_type VARCHAR(80) DEFAULT 'unknown';
 
 -- 3. Clauses Table
 -- Stores structurally chunked legal clauses with 1536-dimensional vector embeddings

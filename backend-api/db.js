@@ -101,7 +101,7 @@ function executeMockQuery(text, params = []) {
     // 1. INSERT INTO contracts
     if (trimmed.startsWith('INSERT INTO CONTRACTS')) {
         const id = require('crypto').randomUUID();
-        const [filename, file_size_bytes, total_pages, total_clauses, status] = params;
+        const [filename, file_size_bytes, total_pages, total_clauses, status, document_type] = params;
         const row = {
             id,
             filename,
@@ -109,6 +109,7 @@ function executeMockQuery(text, params = []) {
             total_pages: total_pages || 0,
             total_clauses: total_clauses || 0,
             status: status || 'processed',
+            document_type: document_type || 'unknown',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };

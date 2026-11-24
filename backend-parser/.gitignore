@@ -11,6 +11,7 @@ __pycache__/
 venv/
 env/
 ENV/
+chroma_data/
 
 # Test output and temp files
 *.pdf

@@ -8,6 +8,15 @@ import { INITIAL_MOCK_CONTRACT, MOCK_QUERY_RESPONSES } from '../data/mockContrac
 
 const API_BASE_URL = 'http://localhost:3050';
 
+export interface PersistedContractSummary {
+  id: string;
+  filename: string;
+  document_type?: string;
+  total_clauses?: number;
+  total_pages?: number;
+  vector_indexed_clauses?: number;
+}
+
 export interface BackendHealthStatus {
   isOnline: boolean;
   database: string;
@@ -50,7 +59,8 @@ export async function checkBackendHealth(): Promise<BackendHealthStatus> {
  */
 export async function uploadContractPdf(
   file: File,
-  forceOffline: boolean = false
+  forceOffline: boolean = false,
+  documentType: string = 'unknown'
 ): Promise<{ contract: Contract; isMockFallback: boolean }> {
   if (forceOffline) {
     console.log('[API] Offline Presentation Mode active. Using simulated parser.');
@@ -67,6 +77,7 @@ export async function uploadContractPdf(
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('document_type', documentType);
 
     const response = await fetch(`${API_BASE_URL}/api/contracts/upload`, {
       method: 'POST',
@@ -88,6 +99,8 @@ export async function uploadContractPdf(
         total_clauses: data.total_clauses || (data.clauses ? data.clauses.length : 0),
         dependencies_linked: data.dependencies_linked ?? 0,
         parser_time_ms: data.parser_time_ms ?? 0,
+        document_type: data.document_type || documentType,
+        vector_indexed_clauses: data.vector_indexed_clauses ?? 0,
         clauses: data.clauses || []
       },
       isMockFallback: false
@@ -95,6 +108,36 @@ export async function uploadContractPdf(
   } catch (err: any) {
     throw new Error(`Live upload failed: ${err.message}`);
   }
+}
+
+export async function listPersistedContracts(): Promise<PersistedContractSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/api/contracts`, { signal: AbortSignal.timeout(6000) });
+  if (!response.ok) throw new Error('Could not load the document library.');
+  const data = await response.json();
+  return data.contracts || [];
+}
+
+export async function loadPersistedContract(contractId: string): Promise<Contract> {
+  const response = await fetch(`${API_BASE_URL}/api/contracts/${encodeURIComponent(contractId)}`, { signal: AbortSignal.timeout(6000) });
+  if (!response.ok) throw new Error('Could not open this contract.');
+  const data = await response.json();
+  const contract = data.contract || {};
+  const clauses = data.clauses || contract.clauses || [];
+  return {
+    id: contract.id || contractId,
+    filename: contract.filename || 'Stored contract',
+    total_pages: contract.total_pages || 1,
+    total_clauses: contract.total_clauses || clauses.length,
+    dependencies_linked: contract.dependencies_linked || 0,
+    document_type: contract.document_type || 'unknown',
+    vector_indexed_clauses: contract.vector_indexed_clauses || clauses.length,
+    clauses,
+  };
+}
+
+export async function deletePersistedContract(contractId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/contracts/${encodeURIComponent(contractId)}`, { method: 'DELETE', signal: AbortSignal.timeout(6000) });
+  if (!response.ok) throw new Error('Could not remove this contract.');
 }
 
 /**
@@ -106,7 +149,9 @@ export async function queryContract(
   query: string,
   contractId?: string,
   forceMissingEvidence: boolean = false,
-  forceOffline: boolean = false
+  forceOffline: boolean = false,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+  priorClauseIds: string[] = []
 ): Promise<QueryResult> {
   // Offline mode is explicitly labelled and is the only path that uses demo data.
   if (forceOffline) {
@@ -127,7 +172,9 @@ export async function queryContract(
         query,
         contract_id: contractId,
         top_k: 2,
-        hops: 2
+        hops: 2,
+        conversation_history: conversationHistory.slice(-4),
+        prior_clause_ids: priorClauseIds.slice(-4)
       }),
       signal: AbortSignal.timeout(6000),
     });
@@ -156,7 +203,10 @@ export async function queryContract(
         missing_references: missing,
         answer_provider: generated?.answer_provider,
         answer_model: generated?.answer_model,
+        answer_status: generated?.status,
         answer_citations: generated?.citations || [],
+        evidence_verification: data.evidence_verification,
+        guardrail_summary: data.guardrail_summary,
         verdict_summary: isAbstain
           ? undefined
           : generated?.answer || (seed

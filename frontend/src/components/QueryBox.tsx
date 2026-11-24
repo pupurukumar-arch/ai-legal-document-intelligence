@@ -22,10 +22,10 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
   };
 
   return (
-    <div className="bg-[#111722] p-5 rounded-xl border border-slate-800 mb-6">
+    <div className="bg-[#fffdf8] p-5 rounded-xl border border-[#ded2b6] mb-5 shadow-[0_8px_22px_rgba(83,60,20,0.08)]">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-white">Ask about the contract</h2>
-        <p className="text-xs text-slate-500 mt-1">Answers remain linked to the clauses used.</p>
+        <h2 className="text-base font-semibold text-[#17304e]">Ask a question</h2>
+        <p className="text-xs text-[#737b7b] mt-1">Get a plain-language answer with the exact clauses used.</p>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-3">
         <div className="relative flex-1">
@@ -35,7 +35,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Example: What information is excluded?"
-            className="w-full pl-11 pr-4 py-3 bg-[#0b0f17] border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-500 transition-colors"
+            className="w-full pl-11 pr-4 py-3 bg-[#fffaf0] border border-[#d6c7a7] rounded-lg text-sm text-[#263b52] placeholder-[#a59b86] focus:outline-none focus:border-[#2696a8] transition-colors"
             disabled={isLoading}
           />
         </div>
@@ -43,7 +43,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
         <button
           type="submit"
           disabled={isLoading || !query.trim()}
-          className="px-5 py-3 rounded-lg bg-slate-100 hover:bg-white text-slate-950 font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+          className="px-5 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-400 hover:to-cyan-300 text-white font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
         >
           {isLoading ? (
             <>
@@ -60,7 +60,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
       </form>
 
       <div className="flex items-center gap-x-4 gap-y-2 flex-wrap pt-1 text-xs">
-          <span className="text-slate-500">Examples</span>
+          <span className="text-[#837a67]">Examples</span>
 
           <button
             type="button"
@@ -70,7 +70,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 false
               )
             }
-            className="text-slate-300 hover:text-white underline underline-offset-4 decoration-slate-700 cursor-pointer"
+            className="text-[#276779] hover:text-[#17304e] underline underline-offset-4 decoration-[#a9cfd2] cursor-pointer"
           >
             What is excluded?
           </button>
@@ -83,7 +83,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 false
               )
             }
-            className="text-slate-300 hover:text-white underline underline-offset-4 decoration-slate-700 cursor-pointer"
+            className="text-[#276779] hover:text-[#17304e] underline underline-offset-4 decoration-[#a9cfd2] cursor-pointer"
           >
             Care and duration
           </button>
@@ -96,7 +96,7 @@ export const QueryBox: React.FC<QueryBoxProps> = ({ onSearch, isLoading }) => {
                 true
               )
             }
-            className="text-rose-300 hover:text-rose-200 font-medium flex items-center gap-1.5 cursor-pointer"
+            className="text-[#b85a45] hover:text-[#8f402f] font-medium flex items-center gap-1.5 cursor-pointer"
             title="Queries the dependency graph for an unattached schedule"
           >
             <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />

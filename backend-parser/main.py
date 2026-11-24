@@ -5,7 +5,8 @@ Part of the AI Legal Document Intelligence Platform.
 
 import time
 import asyncio
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel, Field
 from fastapi import FastAPI, File, UploadFile, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 import pymupdf as fitz
@@ -16,6 +17,10 @@ try:
 except ImportError:
     from models import ParseResponse, DocumentMetadata, ClauseItem
     from parser import LegalHierarchyParser
+try:
+    from .vector_store import index_clauses, search_clauses, get_contract_clauses, list_contracts, delete_contract, index_policy_sources, search_policy_sources
+except ImportError:
+    from vector_store import index_clauses, search_clauses, get_contract_clauses, list_contracts, delete_contract, index_policy_sources, search_policy_sources
 
 app = FastAPI(
     title="AI Legal Document Intelligence Platform - Backend Parser",
@@ -37,6 +42,25 @@ app.add_middleware(
 
 parser = LegalHierarchyParser()
 
+class VectorIndexRequest(BaseModel):
+    contract_id: str
+    document_type: str = "unknown"
+    clauses: List[dict]
+    filename: str = "contract.pdf"
+
+class VectorSearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    contract_id: Optional[str] = None
+    top_k: int = Field(default=3, ge=1, le=10)
+
+class PolicyIndexRequest(BaseModel):
+    sources: List[dict]
+
+class PolicySearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    document_type: Optional[str] = None
+    top_k: int = Field(default=3, ge=1, le=10)
+
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -56,7 +80,55 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check probe endpoint."""
-    return {"status": "healthy", "service": "backend-parser"}
+    return {"status": "healthy", "service": "backend-parser", "vector_store": "chromadb-local"}
+
+@app.post("/vector/index-clauses", tags=["Vector Retrieval"])
+async def vector_index(request: VectorIndexRequest):
+    try:
+        indexed = index_clauses(request.contract_id, request.document_type, request.clauses, request.filename)
+        return {"success": True, "indexed_clauses": indexed, "collection": "contract_clauses"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Vector indexing failed: {exc}")
+
+@app.post("/vector/search", tags=["Vector Retrieval"])
+async def vector_search(request: VectorSearchRequest):
+    try:
+        matches = search_clauses(request.query, request.contract_id, request.top_k)
+        return {"success": True, "matches": matches, "retrieval": "chromadb-semantic"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Vector search failed: {exc}")
+
+@app.get("/vector/contracts", tags=["Vector Retrieval"])
+async def vector_contracts():
+    return {"success": True, "contracts": list_contracts()}
+
+@app.get("/vector/contracts/{contract_id}", tags=["Vector Retrieval"])
+async def vector_contract(contract_id: str):
+    found = get_contract_clauses(contract_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return {"success": True, "contract": {"id": contract_id, "filename": found[0]["filename"], "document_type": found[0]["document_type"], "total_clauses": len(found)}, "clauses": found}
+
+@app.delete("/vector/contracts/{contract_id}", tags=["Vector Retrieval"])
+async def delete_vector_contract(contract_id: str):
+    removed = delete_contract(contract_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return {"success": True, "removed_clauses": removed}
+
+@app.post("/vector/index-policy-sources", tags=["Vector Retrieval"])
+async def policy_index(request: PolicyIndexRequest):
+    try:
+        return {"success": True, "indexed_sources": index_policy_sources(request.sources), "collection": "legal_policy_sources"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Policy indexing failed: {exc}")
+
+@app.post("/vector/search-policy-sources", tags=["Vector Retrieval"])
+async def policy_search(request: PolicySearchRequest):
+    try:
+        return {"success": True, "matches": search_policy_sources(request.query, request.document_type, request.top_k), "retrieval": "chromadb-policy-semantic"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Policy search failed: {exc}")
 
 
 @app.post(

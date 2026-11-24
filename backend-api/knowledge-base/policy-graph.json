@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0-demo",
+  "disclaimer": "Curated prototype policy graph for contract review and negotiation drafting. It is not legal advice and does not determine enforceability.",
+  "document_types": {
+    "nda": {
+      "label": "Mutual Non-Disclosure Agreement",
+      "required_checks": ["parties", "confidential_information_definition", "exclusions", "permitted_disclosure", "term", "governing_law"],
+      "clause_policies": {
+        "confidentiality": {
+          "label": "Confidentiality obligation",
+          "risk_patterns": ["in perpetuity", "sole discretion", "without limitation"],
+          "review_checks": ["defines confidential information", "states permitted disclosures", "states a survival period"],
+          "templates": {
+            "balanced": "The Receiving Party shall protect Confidential Information using reasonable care and shall not disclose it except to personnel with a need to know who are bound by confidentiality obligations. These obligations survive for two (2) years after termination.",
+            "plain_language": "The receiving party must protect confidential information, may share it only with authorised people who also keep it confidential, and must continue doing so for two years after the agreement ends."
+          }
+        }
+      }
+    },
+    "rental_agreement": {
+      "label": "Residential Rent Agreement",
+      "required_checks": ["parties", "property_description", "rent", "security_deposit", "term", "notice_period", "maintenance", "signatures"],
+      "clause_policies": {
+        "security_deposit": {
+          "label": "Security deposit",
+          "risk_patterns": ["sole discretion", "any amount", "non-refundable", "without explanation"],
+          "review_checks": ["specifies deduction grounds", "excludes normal wear and tear", "sets return timeline", "requires itemised statement"],
+          "templates": {
+            "balanced": "The Landlord may deduct documented unpaid rent, utility charges, or repair costs for damage beyond normal wear and tear from the security deposit. The Landlord shall provide an itemised written statement and return any remaining balance within thirty (30) days after handover of the premises.",
+            "tenant_friendly": "No security-deposit deduction may be made without prior written notice, supporting invoices where applicable, and an itemised statement. Normal wear and tear shall not be treated as damage. The remaining balance shall be returned within fifteen (15) days after handover."
+          }
+        },
+        "termination": {
+          "label": "Termination and notice",
+          "risk_patterns": ["immediate eviction", "without notice", "sole discretion"],
+          "review_checks": ["states notice period", "states breach cure process", "states handover process"],
+          "templates": {
+            "balanced": "Either party may terminate this Agreement by giving thirty (30) days' prior written notice. In the event of a material breach, the non-breaching party shall first provide written notice and a reasonable opportunity to cure, except where immediate action is required by law."
+          }
+        }
+      }
+    },
+    "employment_agreement": {
+      "label": "Employment Agreement",
+      "required_checks": ["employer_employee", "role", "compensation", "probation", "notice_period", "confidentiality", "intellectual_property", "signatures"],
+      "clause_policies": {
+        "notice_period": {
+          "label": "Notice period",
+          "risk_patterns": ["immediate termination", "without pay", "sole discretion"],
+          "review_checks": ["states notice duration", "covers probation separately", "states pay in lieu if applicable"],
+          "templates": {
+            "balanced": "During probation, either party may end employment by giving fifteen (15) days' written notice. After confirmation, either party may end employment by giving thirty (30) days' written notice or salary in lieu of notice, subject to applicable law."
+          }
+        }
+      }
+    },
+    "service_agreement": {
+      "label": "Software Service Agreement",
+      "required_checks": ["parties", "scope_of_work", "payment", "milestones", "acceptance", "liability", "termination", "governing_law"],
+      "clause_policies": {
+        "liability": {
+          "label": "Limitation of liability",
+          "risk_patterns": ["unlimited liability", "all losses", "sole discretion", "no liability"],
+          "review_checks": ["states liability cap", "identifies excluded losses", "covers intentional misconduct separately"],
+          "templates": {
+            "balanced": "Except for fraud, wilful misconduct, confidentiality breaches, or amounts expressly payable under this Agreement, each party's aggregate liability shall not exceed the fees paid or payable under this Agreement during the twelve (12) months preceding the event giving rise to the claim. Neither party shall be liable for indirect or consequential losses to the extent permitted by applicable law."
+          }
+        }
+      }
+    }
+  }
+}

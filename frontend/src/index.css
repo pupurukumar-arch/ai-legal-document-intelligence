@@ -8,10 +8,14 @@
 }
 
 body {
-  background-color: #080c14;
-  color: #e2e8f0;
+  background: radial-gradient(circle at 10% 0%, #f5ead1 0%, #d9c9a7 44%, #7f8790 100%);
+  min-height: 100vh;
+  color: #1f3349;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
+
+.rise-in { animation: riseIn 360ms ease-out both; }
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
@@ -50,17 +54,18 @@ body {
 /* Highlighting and Pulse Animations for Target Clauses */
 .highlight-target {
   animation: targetPulse 1.2s ease-out;
-  border-color: #64748b !important;
+  border-color: #4a9fae !important;
+  background: #e9f5f1 !important;
 }
 
 @keyframes targetPulse {
   0% {
-    background: #1e293b;
+    background: #ccebe5;
   }
   50% {
-    background: #172033;
+    background: #e0f2ec;
   }
   100% {
-    background: #0e1420;
+    background: #e9f5f1;
   }
 }

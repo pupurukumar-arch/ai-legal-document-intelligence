@@ -35,18 +35,19 @@ function normalizeRefToClauseId(ref) {
 /**
  * Saves a contract and its clauses into PostgreSQL, then resolves and links dependencies.
  */
-async function saveContractWithClauses(contractMeta, parsedClauses, fileSizeBytes) {
+async function saveContractWithClauses(contractMeta, parsedClauses, fileSizeBytes, documentType = 'unknown') {
     // 1. Insert into contracts
     const contractRes = await db.query(
-        `INSERT INTO contracts (filename, file_size_bytes, total_pages, total_clauses, status)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO contracts (filename, file_size_bytes, total_pages, total_clauses, status, document_type)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
             contractMeta.filename || 'contract.pdf',
             fileSizeBytes || 0,
             contractMeta.total_pages || 1,
             parsedClauses.length,
-            'processed'
+            'processed',
+            documentType
         ]
     );
 
@@ -127,27 +128,73 @@ async function saveContractWithClauses(contractMeta, parsedClauses, fileSizeByte
     };
 }
 
+function buildDependenciesFromClauses(clauses) {
+    const byCode = new Map();
+    for (const clause of clauses) {
+        byCode.set(clause.clause_id, clause.id);
+        const normalized = normalizeRefToClauseId(clause.clause_id);
+        if (normalized) byCode.set(normalized, clause.id);
+    }
+    return clauses.flatMap(clause => (clause.cross_references || []).map(rawRef => {
+        let relation_type = 'CROSS_REFERENCE';
+        if (/Schedule|Exhibit|Appendix/i.test(rawRef)) relation_type = 'ATTACHMENT_REFERENCE';
+        else if (/Article\s+1|Definitions/i.test(rawRef)) relation_type = 'DEFINITION_DEPENDENCY';
+        else if (/Term|Termination|Default/i.test(rawRef)) relation_type = 'CONDITIONED_ON';
+        return { contract_id: clause.contract_id, source_clause_id: clause.id, target_clause_id: byCode.get(normalizeRefToClauseId(rawRef)) || byCode.get(rawRef) || null, target_clause_code: rawRef, relation_type };
+    }));
+}
+
+// Users naturally use everyday contract language (for example, “security cut”
+// instead of “security-deposit deduction”). Add narrow, explainable retrieval
+// aliases before lexical ranking; the LLM still receives the user's original
+// question and only answers from retrieved contract clauses.
+function expandLegalSearchQuery(query) {
+    const lower = query.toLowerCase();
+    const aliases = [];
+    if (/(security|deposit)/.test(lower) && /(cut|deduct|deduction|return|refund|keep)/.test(lower)) {
+        aliases.push('security deposit deduction landlord handover damage refund');
+    }
+    if (/(evict|vacate|leave|termination|terminate)/.test(lower)) {
+        aliases.push('termination notice breach possession landlord tenant');
+    }
+    if (/(notice|resign|quit)/.test(lower)) {
+        aliases.push('written notice resignation termination');
+    }
+    if (/(confidential|secret|non disclosure)/.test(lower) && /(exclude|exception|not confidential)/.test(lower)) {
+        aliases.push('confidential information exclusions publicly available independently developed third party schedule');
+    }
+    return aliases.length ? `${query} ${aliases.join(' ')}` : query;
+}
+
 /**
  * Multi-Hop Legal Retrieval
  * 1. Seed Retrieval (Hop 0): Finds directly relevant clauses by keyword or vector.
  * 2. Dependency Traversal (Hop 1 & Hop 2): Follows directed links in `clause_dependencies`
  *    to retrieve referenced schedules, exhibits, and companion clauses.
  */
-async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, queryEmbedding = null }) {
+async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, vectorSeedClauseIds = [], persistedClauses = null }) {
     if (!query || typeof query !== 'string') {
         throw new Error("Query parameter must be a non-empty string.");
     }
 
     // Step 1: Retrieve all clauses for the target contract (or all contracts)
-    let clausesSql = `SELECT * FROM clauses`;
-    let clausesParams = [];
-    if (contractId) {
-        clausesSql += ` WHERE contract_id = $1`;
-        clausesParams.push(contractId);
+    let allClauses;
+    let allDependencies;
+    if (persistedClauses) {
+        allClauses = persistedClauses;
+        allDependencies = buildDependenciesFromClauses(allClauses);
+    } else {
+        let clausesSql = `SELECT * FROM clauses`;
+        let clausesParams = [];
+        if (contractId) { clausesSql += ` WHERE contract_id = $1`; clausesParams.push(contractId); }
+        const clausesRes = await db.query(clausesSql, clausesParams);
+        allClauses = clausesRes.rows || [];
+        let depsSql = `SELECT * FROM clause_dependencies`;
+        let depsParams = [];
+        if (contractId) { depsSql += ` WHERE contract_id = $1`; depsParams.push(contractId); }
+        const depsRes = await db.query(depsSql, depsParams);
+        allDependencies = depsRes.rows || [];
     }
-
-    const clausesRes = await db.query(clausesSql, clausesParams);
-    const allClauses = clausesRes.rows || [];
 
     if (allClauses.length === 0) {
         return {
@@ -158,16 +205,6 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
         };
     }
 
-    // Step 2: Retrieve dependencies
-    let depsSql = `SELECT * FROM clause_dependencies`;
-    let depsParams = [];
-    if (contractId) {
-        depsSql += ` WHERE contract_id = $1`;
-        depsParams.push(contractId);
-    }
-    const depsRes = await db.query(depsSql, depsParams);
-    const allDependencies = depsRes.rows || [];
-
     // Map clauses by ID for quick traversal
     const clauseMap = new Map();
     for (const c of allClauses) {
@@ -177,7 +214,8 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
 
     // Step 3: Direct Match Scoring (Hop 0)
     // Hybrid scoring: checks terms in title, clause_id, and content
-    const queryTerms = query.toLowerCase().match(/[a-z0-9]+(?:\.[a-z0-9]+)*/g) || [];
+    const retrievalQuery = expandLegalSearchQuery(query);
+    const queryTerms = retrievalQuery.toLowerCase().match(/[a-z0-9]+(?:\.[a-z0-9]+)*/g) || [];
     
     const scoredClauses = allClauses.map(clause => {
         let score = 0;
@@ -188,7 +226,7 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
         // other clauses would otherwise dominate lexical scoring.
         for (const reference of clause.cross_references || []) {
             const normalizedReference = reference.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-            const normalizedQuestion = query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+            const normalizedQuestion = retrievalQuery.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
             if (normalizedReference && normalizedQuestion.includes(normalizedReference)) {
                 score += 20;
             }
@@ -207,6 +245,11 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
             score += Math.min(matches, 3);
         }
 
+        // Semantic vector candidates receive a deterministic boost. We still
+        // preserve lexical scoring and dependency traversal for explainability.
+        const vectorIndex = vectorSeedClauseIds.indexOf(clause.clause_id);
+        if (vectorIndex >= 0) score += 12 - vectorIndex;
+
         return { clause, score };
     });
 
@@ -218,6 +261,7 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
         .map(item => ({
             ...item.clause,
             relevance_score: item.score,
+            retrieval_method: vectorSeedClauseIds.includes(item.clause.clause_id) ? 'hybrid-vector-lexical' : 'lexical',
             hop_level: 0
         }));
 
@@ -354,5 +398,6 @@ async function multiHopQuery({ query, contractId = null, topK = 3, maxHops = 2, 
 module.exports = {
     saveContractWithClauses,
     multiHopQuery,
+    buildDependenciesFromClauses,
     normalizeRefToClauseId
 };

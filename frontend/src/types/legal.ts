@@ -18,6 +18,8 @@ export interface Contract {
   total_clauses: number;
   dependencies_linked?: number;
   parser_time_ms?: number;
+  document_type?: string;
+  vector_indexed_clauses?: number;
   clauses: Clause[];
 }
 
@@ -62,8 +64,27 @@ export interface QueryResult {
     source_page?: number;
   }>;
   answer_provider?: 'gemini' | 'extractive-fallback' | 'deterministic-verifier' | 'safe-fallback';
+  answer_status?: 'ANSWERED' | 'INSUFFICIENT_EVIDENCE' | 'CLARIFICATION_NEEDED' | 'DOCUMENT_TYPE_REVIEW_NEEDED' | 'GENERATION_FAILED';
   answer_model?: string | null;
   answer_citations?: string[];
+  evidence_verification?: {
+    status?: string;
+    citation_ids_valid?: boolean;
+    sentence_checks?: Array<{
+      sentence: string;
+      lexical_support?: number;
+      status?: string;
+    }>;
+    evidence_support_score?: number | null;
+    review_recommended?: boolean;
+  };
+  guardrail_summary?: {
+    citation_valid: boolean;
+    evidence_support_score?: number | null;
+    required_references_complete: boolean;
+    human_review_recommended: boolean;
+    scope: string;
+  };
   verdict_summary?: string;
   evidence_steps: EvidenceStep[];
 }

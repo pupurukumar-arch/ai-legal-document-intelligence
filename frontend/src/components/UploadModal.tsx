@@ -30,6 +30,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<Contract | null>(null);
+  const [documentType, setDocumentType] = useState('auto');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -75,10 +76,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       }, 700);
 
       setTimeout(() => {
-        setUploadStatus('Persisting clauses and linking dependency graph in PostgreSQL (:3050)...');
+        setUploadStatus('Indexing clause embeddings in ChromaDB and linking references...');
       }, 1400);
 
-      const result = await uploadContractPdf(file, isOfflineMode);
+      const result = await uploadContractPdf(file, isOfflineMode, documentType);
       setIsUploading(false);
       setSuccessResult(result.contract);
     } catch (err: any) {
@@ -125,6 +126,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <p className="text-xs text-slate-300 mt-0.5">
                   {successResult.filename} was successfully chunked and indexed.
                 </p>
+                <p className="mt-1 text-[11px] text-emerald-200/80">
+                  Detected type: {(successResult.document_type || 'unknown').replace(/_/g, ' ')} · {successResult.vector_indexed_clauses ?? successResult.total_clauses} vectors stored
+                </p>
               </div>
             </div>
 
@@ -165,6 +169,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         ) : (
           /* Upload Dropzone Form */
           <div>
+            <label className="mb-2 block text-xs font-medium text-slate-300">Document type for policy review</label>
+            <select value={documentType} onChange={(event) => setDocumentType(event.target.value)} className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+              <option value="auto">Auto-classify from document text</option>
+              <option value="nda">Mutual NDA</option>
+              <option value="rental_agreement">Residential Rent Agreement</option>
+              <option value="employment_agreement">Employment Agreement</option>
+              <option value="service_agreement">Software Service Agreement</option>
+            </select>
             <input
               ref={fileInputRef}
               type="file"

@@ -45,20 +45,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   }, [highlightedClauseId, activeClauseId]);
 
   return (
-    <div className="flex flex-col h-full bg-[#111722] rounded-xl overflow-hidden border border-slate-800">
+    <div className="flex flex-col h-full bg-[#fffdf8] rounded-xl overflow-hidden border border-[#ded2b6] shadow-[0_8px_22px_rgba(83,60,20,0.08)]">
       {/* Panel Header */}
-      <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col gap-4">
+      <div className="p-4 sm:p-5 border-b border-[#e8dcc1] flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-[#edf2ed] border border-[#cbded5] flex items-center justify-center text-[#2b7790] shrink-0">
               <FileText className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-slate-500 mb-1">Current document</p>
-              <h2 className="text-sm sm:text-base font-semibold text-slate-100 flex items-center gap-2 truncate">
+              <p className="text-xs text-[#837a67] mb-1">Current document</p>
+              <h2 className="text-sm sm:text-base font-semibold text-[#17304e] flex items-center gap-2 truncate">
                 <span className="truncate">{contract.filename}</span>
               </h2>
-              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+              <div className="flex items-center gap-2 text-xs text-[#837a67] mt-1">
                 <span>{contract.total_clauses} clauses</span>
                 <span>•</span>
                 <span>{contract.total_pages} pages</span>
@@ -78,7 +78,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             placeholder="Find a clause or keyword..."
-            className="w-full pl-10 pr-16 py-2.5 bg-[#0b0f17] border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors font-sans"
+            className="w-full pl-10 pr-16 py-2.5 bg-[#fffaf0] border border-[#ddd0b3] rounded-lg text-sm text-[#263b52] placeholder-[#a59b86] focus:outline-none focus:border-[#2696a8] transition-colors font-sans"
           />
           {searchFilter && (
             <button
@@ -125,7 +125,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       </div>
 
       {/* Bottom Panel Footer */}
-      <div className="px-5 py-3 bg-[#0b0f17] border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+      <div className="px-5 py-3 bg-[#f9f0dc] border-t border-[#e8dcc1] flex items-center justify-between text-xs text-[#756f62]">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-400"></span>

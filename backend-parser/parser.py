@@ -7,6 +7,9 @@ Also extracts legal cross-references (e.g., 'Schedule A', 'Section 2.1', 'Exhibi
 """
 
 import re
+import subprocess
+import tempfile
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import pymupdf as fitz
 try:
@@ -95,7 +98,37 @@ class LegalHierarchyParser:
     """
 
     def __init__(self):
-        pass
+        self._vision_ocr_script = Path(__file__).with_name("vision_ocr.swift")
+
+    def _ocr_scanned_page(self, page: fitz.Page) -> str:
+        """Use the local macOS Vision engine only when a page has no usable text layer.
+
+        The normal path remains PyMuPDF extraction. This fallback makes common
+        CamScanner-style image PDFs usable in the local demo without sending a
+        contract to any third-party OCR service.
+        """
+        if not self._vision_ocr_script.exists():
+            return ""
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="legal-ocr-") as temp_dir:
+                image_path = Path(temp_dir) / "page.png"
+                pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+                pixmap.save(str(image_path))
+                result = subprocess.run(
+                    ["swift", str(self._vision_ocr_script), str(image_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=45,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    return result.stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            # The API route will still return a readable-text error if there is
+            # neither embedded text nor a local OCR result.
+            return ""
+        return ""
 
     def parse_pdf_bytes(self, pdf_bytes: bytes, filename: str = "document.pdf") -> List[ClauseItem]:
         """
@@ -132,6 +165,19 @@ class LegalHierarchyParser:
             # Extract structured text blocks (type 0 = text, 1 = image)
             # PyMuPDF naturally orders blocks top-to-bottom, left-to-right
             blocks = page.get_text("blocks")
+            embedded_text = "\n".join(
+                str(block[4]).strip()
+                for block in blocks
+                if len(block) >= 5 and block[4]
+            )
+
+            # Image-only PDFs (for example CamScanner uploads) often contain a
+            # tiny watermark text layer but no contract content. OCR only those
+            # pages, keeping born-digital PDFs on the fast native path.
+            if len(embedded_text) < 80:
+                ocr_text = self._ocr_scanned_page(page)
+                if len(ocr_text) > len(embedded_text):
+                    blocks = [(0, 0, 0, 0, ocr_text)]
 
             for block in blocks:
                 if len(block) < 5 or block[4] is None:
